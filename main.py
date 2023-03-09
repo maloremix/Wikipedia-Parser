@@ -7,7 +7,7 @@ def get_html(url):
     return r.text
 
 
-def get_data(html, i = 0, path =""):
+def get_data(html, urlDest, i = 0, path =""):
     soup = BeautifulSoup(html, 'lxml')
     paragrahps = soup.find('div', id='mw-content-text').find_all('p')
     refs_in_paragrahs = []
@@ -48,16 +48,18 @@ def get_data(html, i = 0, path =""):
     if 'https://ru.wikipedia.org/wiki/Nintendo_3DS' in urls:
         print('НАШЛОСЬ')
     for url, text in urls:
-        if url == 'https://ru.wikipedia.org/wiki/Nintendo_3DS':
+        if url == urlDest:
             path += text + "\n"  + url + "\n"
             print(path)
             return
         if i != 2:
-            get_data(get_html(url), i + 1, (path + '.')[:-1] + text + "\n"  + url + "\n")
+            get_data(get_html(url), urlDest, i + 1, (path + '.')[:-1] + text + "\n"  + url + "\n")
 
-
+urlInp = input("Введите начальный url: ")
+urlDest = input("Введите конечный url: ")
 url = 'https://ru.wikipedia.org/wiki/Xbox_360_S'
-get_data(get_html(url))
+url2 = 'https://ru.wikipedia.org/wiki/Nintendo_3DS'
+get_data(get_html(urlInp), urlDest)
 print()
 
 
