@@ -1,65 +1,59 @@
-import requests
 from bs4 import BeautifulSoup, Tag
-import copy
+import asyncio
+import aiohttp
+import re
 
-def get_html(url):
-    r = requests.get(url)
-    return r.text
-
-
-def get_data(html, urlDest, i = 0, path =""):
-    soup = BeautifulSoup(html, 'lxml')
-    paragrahps = soup.find('div', id='mw-content-text').find_all('p')
-    refs_in_paragrahs = []
-    for paragraph in paragrahps:
-        # print(paragraph.text)
-        paragrath_with_a = ""
-        for content in paragraph.contents:
-            if isinstance(content, Tag):
-                if content.name == 'a':
-                    paragrath_with_a += content.text + "(ссылка)"
-                else:
-                    paragrath_with_a += content.text
-            else:
-                paragrath_with_a += content
-        paragrath_with_a.split('.')
-        list_of_sentences = list(filter(lambda element: "(ссылка)" in element, paragrath_with_a.split('.')))
+async def async_get_refs(session, url):
         list_of_sentences_with_a = []
-        for sentence in list_of_sentences:
-            for k in range(sentence.count("(ссылка)")):
-                list_of_sentences_with_a.append(sentence)
-        if paragraph.find_all('a') and list_of_sentences_with_a:
-            refs_in_paragrahs.append((paragraph.find_all('a'), list_of_sentences_with_a))
-    refs = []
-    for refs_in_one_paragraph, sentences in refs_in_paragrahs:
-        for ref, sentence in zip(refs_in_one_paragraph, sentences):
-            url = ref.get('href')
-            if url is not None and '#' not in url:
-                refs.append((url, sentence))
-    urls = []
-    for ref, text in refs:
-        if '/wiki' in ref:
-            if 'https' not in ref:
-                url = 'https://ru.wikipedia.org' + ref
-            else:
-                url = ref
-            if url not in urls:
-                urls.append((url, text))
-    if 'https://ru.wikipedia.org/wiki/Nintendo_3DS' in urls:
-        print('НАШЛОСЬ')
-    for url, text in urls:
-        if url == urlDest:
-            path += text + "\n"  + url + "\n"
-            print(path)
-            return
-        if i != 2:
-            get_data(get_html(url), urlDest, i + 1, (path + '.')[:-1] + text + "\n"  + url + "\n")
+        response = await session.get(url=url)
+        soup = BeautifulSoup(await response.text(), "lxml")
+        paragrahps = soup.find('div', id='mw-content-text').find_all('p')
+        refs = []
+        for paragraph in paragrahps:
+            paragrath_with_a = ""
+            for content in paragraph.contents:
+                if isinstance(content, Tag):
+                    if content.name == 'a':
+                        ref = content.get("href")
+                        if ref is not None:
+                            standart_ref = ref if 'https' in ref else 'https://ru.wikipedia.org' + ref
+                            refs.append(standart_ref)
+                            paragrath_with_a += content.text + "(ссылка)"
+                    else:
+                        paragrath_with_a += content.text
+                else:
+                    paragrath_with_a += content
+            paragrath_with_a.split('.')
+            list_of_sentences = list(filter(lambda element: "(ссылка)" in element, paragrath_with_a.split('.')))
+            for sentence in list_of_sentences:
+                for k in range(sentence.count("(ссылка)")):
+                    list_of_sentences_with_a.append(sentence.replace("(ссылка)", ""))
+        return refs, list_of_sentences_with_a
 
-urlInp = input("Введите начальный url: ")
-urlDest = input("Введите конечный url: ")
-url = 'https://ru.wikipedia.org/wiki/Xbox_360_S'
-url2 = 'https://ru.wikipedia.org/wiki/Nintendo_3DS'
-get_data(get_html(urlInp), urlDest)
+async def get_data(session, ref1, sentence1, url_dest):
+    if ref1 == url_dest:
+        print("1------------------------" + "\n" + ref1 + sentence1 + "\n\n\n")
+    refs2, sentences2 = await async_get_refs(session, ref1)
+    for ref2, sentence2 in zip(refs2, sentences2):
+        if ref2 == url_dest:
+            print("1------------------------" + "\n" + sentence1 + "\n" + ref1 + "\n" + "2------------------------" + "\n" + sentence2 + "\n" +  ref2 + "\n\n\n")
+        refs3, sentences3 = await async_get_refs(session, ref2)
+        for ref3, sentence3 in zip(refs3, sentences3):
+            if ref3 == url_dest:
+                print("1------------------------" + "\n" + sentence1 + "\n" + ref1 + "\n" + "2------------------------" + "\n" + sentence2 + "\n" +  ref2 + "\n" + "3------------------------" + "\n" + sentence3 + "\n" + ref3 + "\n\n\n")
+
+async def gather_async(url_inp, url_dest):
+    async with aiohttp.ClientSession() as session:
+        refs, sentences = await async_get_refs(session, url_inp)
+        tasks = []
+        for ref, sentence in zip(refs, sentences):
+            task = asyncio.create_task(get_data(session, ref, sentence, url_dest))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
+
+url_inp = input("Введите начальный url: ")
+url_dest = input("Введите конечный url: ")
+# url1 = 'https://ru.wikipedia.org/wiki/Xbox_360_S'
+# url2 = "https://ru.wikipedia.org/wiki/Nintendo_3DS"
+asyncio.run(gather_async(url_inp, url_dest))
 print()
-
-
