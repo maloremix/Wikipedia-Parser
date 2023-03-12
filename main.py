@@ -1,7 +1,6 @@
 from bs4 import BeautifulSoup, Tag
 import asyncio
 import aiohttp
-import re
 
 async def async_get_refs(session, url):
         list_of_sentences_with_a = []
@@ -56,4 +55,3 @@ url_dest = input("Введите конечный url: ")
 # url1 = 'https://ru.wikipedia.org/wiki/Xbox_360_S'
 # url2 = "https://ru.wikipedia.org/wiki/Nintendo_3DS"
 asyncio.run(gather_async(url_inp, url_dest))
-print()
